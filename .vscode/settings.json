@@ -1,0 +1,15 @@
+{
+    "liveServer.settings.root": "/",
+    "liveServer.settings.port": 5500,
+    "liveServer.settings.NoBrowser": false,
+    "liveServer.settings.AdvanceCustomBrowserCmdLine": "",
+    "liveServer.settings.ChromeDebuggingAttachment": false,
+    "liveServer.settings.useLocalIp": false,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000,
+    "workbench.colorTheme": "Default Dark+",
+    "editor.minimap.enabled": true,
+    "breadcrumbs.enabled": true
+}

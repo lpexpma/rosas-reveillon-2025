@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rosas — Édition Réveillon 31 XII 2025</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- CSS principal -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F7B306">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rosas">
+</head>
+<body>
+  <!-- Particules flottantes -->
+  <div id="particles"></div>
+
+  <div class="container">
+    <!-- ÉCRAN PSEUDO -->
+    <div class="screen active" id="screen-pseudo">
+      <div class="logo-container" aria-label="Logo Rosas">
+        <img src="assets/img/Logo.png" alt="Logo Rosas" style="width:100%;height:auto;">
+      </div>
+
+      <div class="game-title">
+        <h1>Ce qui se passe à Rosas, reste à Rosas !</h1>
+        <div class="edition">Édition Réveillon du 31 XII 2025</div>
+      </div>
+
+      <div class="host-message">
+        <span style="color:var(--gold);font-weight:600;">Laurent</span> vous accueille à sa soirée exclusive
+      </div>
+
+      <div class="pseudo-input-container">
+        <input type="text" id="user-pseudo" class="pseudo-input" placeholder="Votre pseudo pour la soirée" maxlength="20" />
+        <div class="max-players-info">
+          <i class="fas fa-users" style="color:var(--gold);margin-right:5px;"></i>
+          Capacité : 8 joueurs maximum
+        </div>
+      </div>
+
+      <button class="button" id="btn-continue">
+        <i class="fas fa-check-circle" style="margin-right:8px;"></i> CONTINUER
+      </button>
+
+      <div class="rosas-watermark">ROSAS 2025</div>
+    </div>
+
+    <!-- HOME (après saisie du pseudo) -->
+    <div class="screen" id="screen-home">
+      <div class="logo-container" style="width:90px;height:90px;margin-bottom:20px;">
+        <img src="assets/img/Logo.png" alt="Logo Rosas" style="width:100%;height:auto;">
+      </div>
+
+      <div class="game-title">
+        <h1 id="welcome-message">Bienvenue à Rosas</h1>
+        <div class="edition">Édition Réveillon du 31 XII 2025</div>
+      </div>
+
+      <div class="host-message">
+        Bonjour <span id="player-name-display" style="color:var(--gold);font-weight:600;"></span>,<br>
+        <span style="color:var(--gold);font-weight:600;">Laurent</span> vous invite à une soirée exceptionnelle
+      </div>
+
+      <div class="new-year-countdown" data-countdown="true">
+        <i class="fas fa-clock" style="margin-right:8px;"></i> Chargement du compte à rebours…
+      </div>
+
+      <div class="row" style="gap:12px;margin:25px 0;">
+        <button class="button" data-nav="screen-join">
+          <i class="fas fa-plus-circle" style="margin-right:8px;"></i> CRÉER UNE PARTIE
+        </button>
+        <button class="button button-secondary" data-nav="screen-join">
+          <i class="fas fa-door-open" style="margin-right:8px;"></i> REJOINDRE
+        </button>
+      </div>
+
+      <div class="row" style="gap:12px;margin-bottom:15px;">
+        <button class="button button-small" data-nav="screen-stats">
+          <i class="fas fa-chart-bar"></i> STATS
+        </button>
+        <button class="button button-small" data-nav="screen-album">
+          <i class="fas fa-images"></i> ALBUM
+        </button>
+        <button class="button button-small" id="btn-show-settings">
+          <i class="fas fa-cog"></i> PARAMÈTRES
+        </button>
+      </div>
+
+      <div class="rosas-watermark">ROSAS 2025</div>
+    </div>
+
+    <!-- JOIN / CREATE -->
+    <div class="screen" id="screen-join">
+      <div class="logo-container" style="width:90px;height:90px;margin:0 auto 20px;">
+        <img src="assets/img/Logo.png" alt="Logo Rosas" style="width:100%;height:auto;">
+      </div>
+
+      <div style="text-align:center;margin-bottom:25px;">
+        <h2 style="color:var(--gold);margin-bottom:10px;font-family:'Cinzel', serif;">Accéder à Rosas</h2>
+        <p style="color:var(--silver-dark);">Créez ou rejoignez une soirée exclusive</p>
+      </div>
+
+      <div class="row" style="gap:15px;margin-bottom:25px;">
+        <button class="button" id="btn-create-party" style="flex:1;">
+          <i class="fas fa-plus-circle" style="margin-right:8px;"></i> CRÉER
+        </button>
+        <div style="color:var(--silver);font-size:0.9rem;text-align:center;width:100%;">OU</div>
+      </div>
+
+      <div class="card" style="min-height:auto;padding:20px;">
+        <input id="join-code" type="text" placeholder="CODE (ex : ROSAS)" maxlength="8"
+          style="width:100%;padding:18px;border-radius:12px;background:rgba(0,0,0,0.7);border:1px solid rgba(247, 179, 6, 0.6);color:var(--gold);font-size:1.3rem;text-align:center;letter-spacing:6px;font-weight:700;margin-bottom:15px;font-family:'Cinzel', serif;">
+
+        <div class="max-players-info" style="margin-bottom:15px;">
+          <i class="fas fa-user-friends" style="color:var(--gold);margin-right:5px;"></i>
+          8 joueurs maximum • Vous jouerez en tant que : <span id="current-pseudo" style="color:var(--gold);font-weight:600;"></span>
+        </div>
+
+        <button class="button" id="btn-join">
+          <i class="fas fa-check-circle" style="margin-right:8px;"></i> REJOINDRE LA SOIRÉE
+        </button>
+      </div>
+
+      <div class="notice">
+        <i class="fas fa-crown" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>Laurent vous accueille :</strong>
+        "Les tours sont déterminés par l'ordre d'arrivée"
+      </div>
+
+      <button class="button button-secondary" data-nav="screen-home">
+        <i class="fas fa-arrow-left" style="margin-right:8px;"></i> RETOUR
+      </button>
+
+      <div class="rosas-watermark">INVITÉ</div>
+    </div>
+
+    <!-- LOBBY -->
+    <div class="screen" id="screen-lobby">
+      <div style="text-align:center;margin-bottom:25px;">
+        <h2 style="color:var(--gold);margin-bottom:10px;font-family:'Cinzel', serif;">Salon d'attente</h2>
+        <p style="color:var(--silver-dark);">Les invités arrivent…</p>
+        
+        <div class="party-code-display" style="margin:15px 0;padding:10px;background:rgba(247, 179, 6, 0.1);border-radius:10px;">
+          <div style="font-size:0.9rem;color:var(--gold);">CODE PARTIE</div>
+          <div id="lobby-party-code" style="font-size:2rem;font-weight:800;color:var(--gold);letter-spacing:4px;font-family:'Cinzel', serif;">
+            ROSAS
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin:15px 0 20px;">
+        <h3 style="color:var(--gold);margin-bottom:15px;font-family:'Playfair Display', serif;">
+          INVITÉS PRÉSENTS (<span id="player-count">0</span>/8)
+        </h3>
+        <p style="color:var(--silver-dark);font-size:0.9rem;">
+          <i class="fas fa-info-circle" style="color:var(--gold);margin-right:5px;"></i>
+          L'ordre d'arrivée détermine l'ordre de jeu
+        </p>
+      </div>
+
+      <div class="players-container" id="players">
+        <!-- populated by JS -->
+      </div>
+
+      <div class="notice">
+        <i class="fas fa-champagne-glasses" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>Laurent annonce :</strong>
+        "La soirée commencera lorsque tous seront présents"
+      </div>
+
+      <div class="row" style="gap:12px;margin-top:20px;">
+        <button class="button" id="btn-start-game" disabled>
+          <i class="fas fa-play-circle" style="margin-right:8px;"></i> COMMENCER
+        </button>
+        <button class="button button-secondary" id="btn-end-game">
+          <i class="fas fa-flag-checkered"></i> TERMINER
+        </button>
+      </div>
+
+      <button class="button button-secondary" data-nav="screen-home" style="margin-top:15px;">
+        <i class="fas fa-sign-out-alt" style="margin-right:8px;"></i> QUITTER
+      </button>
+
+      <div class="rosas-watermark">SALON PRIVÉ</div>
+    </div>
+
+    <!-- GAME (active player chooses theme) -->
+    <div class="screen" id="screen-game">
+      <div style="text-align:center;margin-bottom:15px;">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div id="turn-counter" style="color:var(--silver);font-size:0.9rem;">Tour 0</div>
+          <div id="timer" style="color:var(--gold);font-weight:600;font-family:'Cinzel', serif;">00:30</div>
+        </div>
+        
+        <h2 style="color:var(--gold);margin-bottom:10px;font-family:'Cinzel', serif;">
+          <span style="font-size:1.5rem;">👑</span>
+          À <span id="current-player-name" style="color:var(--gold-light);"></span> DE JOUER
+        </h2>
+        <p style="color:var(--silver-dark);">Choisissez l'ambiance de la prochaine carte</p>
+      </div>
+
+      <div class="theme-selector" id="themes">
+        <!-- populated by JS -->
+      </div>
+
+      <div class="row" style="gap:12px;margin:25px 0;">
+        <button class="button" id="btn-draw" style="flex:2;">
+          <i class="fas fa-dice" style="margin-right:8px;"></i> TIRER UNE CARTE
+        </button>
+        <button class="button button-secondary" id="btn-pass" style="flex:1;">
+          <i class="fas fa-forward" style="margin-right:8px;"></i> PASSER
+        </button>
+      </div>
+
+      <div style="margin-top:25px;">
+        <div style="text-align:center;color:var(--silver-dark);margin-bottom:15px;font-family:'Playfair Display', serif;">
+          <i class="fas fa-chart-line" style="color:var(--gold);margin-right:8px;"></i>
+          PERFORMANCE DE SOBRIÉTÉ
+        </div>
+        <div class="players-container" id="counters">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <div class="notice" id="active-rule" style="margin-top:20px;display:none;">
+        <i class="fas fa-gavel" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>RÈGLE ACTIVE :</strong>
+        <span id="active-rule-text"></span>
+      </div>
+
+      <button class="button button-secondary" style="margin-top:15px;" data-nav="screen-lobby">
+        <i class="fas fa-undo" style="margin-right:8px;"></i> RETOUR AU SALON
+      </button>
+      <div class="rosas-watermark">JEU EN COURS</div>
+    </div>
+
+    <!-- CARD -->
+    <div class="screen" id="screen-card">
+      <div class="card-theme" id="card-theme">—</div>
+
+      <div class="card">
+        <div class="card-content" id="card-content">
+          —
+        </div>
+
+        <div id="card-actions">
+          <!-- yes/no buttons etc -->
+        </div>
+      </div>
+
+      <div class="row" style="gap:12px;margin:20px 0;">
+        <button class="button" id="btn-validate" style="flex:2;">
+          <i class="fas fa-check-double" style="margin-right:8px;"></i> VALIDER
+        </button>
+        <button class="button button-secondary" id="btn-pass2" style="flex:1;display:none;">
+          <i class="fas fa-forward" style="margin-right:8px;"></i> PASSER
+        </button>
+      </div>
+
+      <!-- Section pour les règles du dé -->
+      <div class="dice-rules" id="dice-rules" style="display:none;">
+        <div style="color:var(--gold);font-weight:bold;margin-bottom:10px;text-align:center;">
+          <i class="fas fa-dice" style="margin-right:8px;"></i>RÈGLES DU DÉ
+        </div>
+        <div class="dice-rule-item">
+          <div class="dice-number">1-2</div>
+          <span>Les personnes du même sexe que vous trinquent et boivent</span>
+        </div>
+        <div class="dice-rule-item">
+          <div class="dice-number">3-4</div>
+          <span>Les personnes du sexe opposé trinquent et boivent</span>
+        </div>
+        <div class="dice-rule-item">
+          <div class="dice-number">5</div>
+          <span>Désignez 1 personne pour porter un toast et boire</span>
+        </div>
+        <div class="dice-rule-item">
+          <div class="dice-number">6</div>
+          <span>Offrez un bisou à la personne de votre choix</span>
+        </div>
+      </div>
+
+      <div class="new-year-countdown" data-countdown="true" style="margin:20px 0;">
+        <i class="fas fa-clock"></i> Chargement du compte à rebours…
+      </div>
+
+      <div class="notice">
+        <i class="fas fa-lightbulb" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>Conseil de Laurent :</strong>
+        "Profitez de l'instant, demain ce ne sera qu'un doux souvenir"
+      </div>
+
+      <button class="button button-secondary" data-nav="screen-game" style="margin-top:12px;">
+        <i class="fas fa-arrow-left" style="margin-right:8px;"></i> RETOUR AU JEU
+      </button>
+      <div class="rosas-watermark">CARTE EXCLUSIVE</div>
+    </div>
+
+    <!-- PHOTO -->
+    <div class="screen" id="screen-photo">
+      <div style="text-align:center;margin-bottom:25px;">
+        <h2 style="color:var(--gold);margin-bottom:10px;font-size:1.8rem;font-family:'Cinzel', serif;">
+          <i class="fas fa-camera" style="margin-right:10px;"></i>Immortaliser Rosas
+        </h2>
+        <p style="color:var(--silver-dark);">Capturez un moment d'exception</p>
+      </div>
+
+      <div class="card">
+        <div class="card-content" id="photo-prompt">
+          Un instant de grâce, un éclat de rire, une complicité…<br>Capturez l'essence de cette soirée.
+        </div>
+      </div>
+
+      <div class="photo-preview-container" id="photo-preview-container" style="margin:20px 0;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:15px;">
+          <i class="fas fa-camera-retro" style="font-size:1.5rem;color:var(--gold);"></i>
+          <strong style="font-size:1.1rem;color:var(--gold);">Moment Rosas 2025</strong>
+        </div>
+
+        <input id="photo-input" type="file" accept="image/*" capture="environment"
+          style="width:100%;padding:15px;border-radius:10px;background:rgba(0,0,0,0.7);border:1px solid rgba(247, 179, 6, 0.4);color:#fff;cursor:pointer;">
+
+        <img id="photo-preview" class="photo-preview" alt="Aperçu exclusif" style="display:none;margin-top:15px;">
+      </div>
+
+      <div class="row" style="gap:12px;">
+        <button class="button" id="btn-photo-save">
+          <i class="fas fa-heart" style="margin-right:8px;"></i> AJOUTER À L'ALBUM
+        </button>
+        <button class="button button-secondary" id="btn-photo-skip">
+          <i class="fas fa-forward" style="margin-right:8px;"></i> PASSER
+        </button>
+      </div>
+
+      <div class="notice">
+        <i class="fas fa-lock" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>Confidentiel :</strong>
+        Ces souvenirs resteront entre nous, comme promis par Laurent
+      </div>
+
+      <button class="button button-secondary" data-nav="screen-game" style="margin-top:15px;">
+        <i class="fas fa-arrow-left" style="margin-right:8px;"></i> RETOUR AU JEU
+      </button>
+      <div class="rosas-watermark">MOMENT EXCLUSIF</div>
+    </div>
+
+    <!-- STATS / END GAME -->
+    <div class="screen" id="screen-stats">
+      <div style="text-align:center;margin-bottom:25px;">
+        <h2 style="color:var(--gold);margin-bottom:10px;font-size:1.9rem;font-family:'Cinzel', serif;">
+          <i class="fas fa-trophy" style="margin-right:10px;"></i>Bilan de Soirée
+        </h2>
+        <p style="color:var(--silver-dark);">Les chiffres de votre expérience Rosas</p>
+      </div>
+
+      <div class="card" style="min-height:auto;padding:25px;">
+        <div id="game-stats">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <div class="notice">
+        <i class="fas fa-champagne-glasses" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>Laurent conclut :</strong>
+        "Merci d'avoir honoré Rosas de votre présence et de votre bonne humeur"
+      </div>
+
+      <div class="row" style="gap:12px;margin-top:20px;">
+        <button class="button" data-nav="screen-album">
+          <i class="fas fa-images" style="margin-right:8px;"></i> VOIR L'ALBUM
+        </button>
+        <button class="button button-secondary" data-nav="screen-home">
+          <i class="fas fa-redo" style="margin-right:8px;"></i> NOUVELLE SOIRÉE
+        </button>
+      </div>
+
+      <div class="rosas-watermark">ROSAS 2025 • STATISTIQUES</div>
+    </div>
+
+    <!-- ALBUM / END -->
+    <div class="screen" id="screen-album">
+      <div style="text-align:center;margin-bottom:25px;">
+        <h2 style="color:var(--gold);margin-bottom:10px;font-size:1.9rem;font-family:'Cinzel', serif;">
+          <i class="fas fa-book" style="margin-right:10px;"></i>Album Souvenir
+        </h2>
+        <p style="color:var(--silver-dark);">Les trésors de votre soirée à Rosas</p>
+      </div>
+
+      <div class="card" style="min-height:auto;padding:25px;">
+        <div style="font-size:1.2rem;color:var(--gold);margin-bottom:15px;font-family:'Playfair Display', serif;">
+          <i class="fas fa-gem" style="margin-right:10px;"></i>Votre collection exclusive
+        </div>
+
+        <div class="album-grid" id="album-grid"></div>
+
+        <div style="margin-top:20px;color:var(--silver);font-size:0.95rem;text-align:center;">
+          <i class="fas fa-envelope" style="color:var(--gold);margin-right:8px;"></i>
+          Recevez cet album par email le 1er janvier
+        </div>
+
+        <input id="album-email" type="email" placeholder="votre.email@exemple.com"
+          style="width:100%;padding:18px;border-radius:12px;background:rgba(255,255,255,0.1);border:1px solid rgba(247, 179, 6, 0.4);color:#fff;font-size:1.05rem;margin:20px 0 15px;text-align:center;">
+
+        <button class="button" id="btn-album-send">
+          <i class="fas fa-gift" style="margin-right:8px;"></i> RECEVOIR L'ALBUM EXCLUSIF
+        </button>
+
+        <div style="margin-top:15px;font-size:0.85rem;color:var(--silver-dark);text-align:center;">
+          <i class="fas fa-star" style="color:var(--gold);margin-right:5px;"></i>
+          Un cadeau de Laurent pour immortaliser cette soirée
+        </div>
+      </div>
+
+      <div class="notice">
+        <i class="fas fa-handshake" style="color:var(--gold);margin-right:8px;"></i>
+        <strong>Laurent vous remercie :</strong>
+        "Merci d'avoir honoré Rosas de votre présence"
+      </div>
+
+      <button class="button button-secondary" data-nav="screen-home">
+        <i class="fas fa-redo" style="margin-right:8px;"></i> NOUVELLE SOIRÉE
+      </button>
+      <div class="rosas-watermark">ROSAS 2025 • LAURENT</div>
+    </div>
+
+    <!-- Navigation debug (masquée par défaut) -->
+    <div style="text-align:center;margin-top:15px;opacity:.7;display:none;" id="debug-nav">
+      <small style="color:rgba(247, 179, 6, 0.5)">Navigation debug</small>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-pseudo">Pseudo</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-home">Accueil</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-join">Rejoindre</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-lobby">Salon</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-game">Jeu</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-card">Carte</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-photo">Photo</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-stats">Stats</button>
+        <button class="button button-secondary" style="padding:8px 10px;width:auto;font-size:0.8rem;" data-nav="screen-album">Album</button>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="button button-small" onclick="debugStorage.exportBackup()">Export</button>
+        <button class="button button-small" onclick="debugStorage.clearAll()">Clear</button>
+        <button class="button button-small" onclick="console.log(debugSyncRoom.getStatus())">Status</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <!-- IMPORTANT: Ordre de chargement correct -->
+  <script src="js/cards.js"></script>        <!-- Base de données des cartes -->
+  <script src="js/game-state.js"></script>   <!-- État du jeu -->
+  <script src="js/storage-local.js"></script><!-- Sauvegarde locale -->
+  <script src="js/ui-manager.js"></script>   <!-- Interface utilisateur -->
+  <script src="js/sync-room.js"></script>    <!-- Synchronisation -->
+  <script src="js/firebase-init.js"></script><!-- Firebase -->
+  <script src="js/app.js"></script>          <!-- Logique principale -->
+</body>
+</html>
