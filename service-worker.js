@@ -1,459 +1,408 @@
 // ============================================================
-// ROSAS REVEILLON 2025 - SERVICE WORKER
-// Version: 2.0.0
+// ROSAS — MODE SALON (CHROMECAST) — SERVICE WORKER
+// Version: 2.0.0-salon
 // ============================================================
 
-const APP_VERSION = 'v2.0.0';
-const CACHE_NAME = `rosas-${APP_VERSION}`;
-const OFFLINE_URL = '/offline.html';
+const APP_VERSION = "2.0.0-salon";
+const CACHE_NAME = `rosas-salon-v${APP_VERSION}`;
 
-// Fichiers à mettre en cache pour le fonctionnement offline
+// Page offline (générée à la volée)
+const OFFLINE_FALLBACK_HTML = `
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Rosas — Hors ligne</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
+      color: #F7B306;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      padding: 40px 30px;
+      border: 1px solid #F7B306;
+      border-radius: 12px;
+      background: rgba(10, 10, 10, 0.9);
+    }
+    .emoji {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      letter-spacing: 2px;
+      margin-bottom: 15px;
+      font-weight: 300;
+    }
+    p {
+      color: #888888;
+      line-height: 1.5;
+      margin: 10px 0;
+    }
+    .reload-btn {
+      margin-top: 25px;
+      padding: 12px 24px;
+      background: #F7B306;
+      color: #000000;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="emoji">🍷</div>
+    <h1>ROSAS est hors ligne</h1>
+    <p>Vérifiez votre connexion Internet, puis rechargez la page.</p>
+    <p>Les fonctionnalités essentielles restent accessibles.</p>
+    <button class="reload-btn" onclick="window.location.reload()">Recharger</button>
+  </div>
+</body>
+</html>`;
+
+// Fichiers à mettre en cache (absolument nécessaires)
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  "/",
+  "/index.html",
+  "/manifest.json",
   
   // CSS
-  '/css/style.css',
-  '/css/animations.css',
+  "/css/style.css",
   
   // JavaScript
-  '/js/app.js',
-  '/js/cards.js',
-  '/js/game-state.js',
-  '/js/storage-local.js',
-  '/js/ui-manager.js',
-  '/js/sync-room.js',
-  '/js/firebase-init.js',
+  "/js/cards.js",
+  "/js/salon.js",
   
   // Images essentielles
-  '/assets/img/Logo.png',
-  '/assets/img/icon-192x192.png',
-  '/assets/img/icon-512x512.png',
-  '/assets/img/favicon.ico',
-  
-  // Fonts
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;500;600&display=swap'
+  "/assets/img/favicon.ico",
+  "/assets/img/icon-192x192.png",
+  "/assets/img/icon-512x512.png"
 ];
 
 // ============================================================
 // INSTALLATION
 // ============================================================
-self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installation en cours...');
+self.addEventListener("install", (event) => {
+  console.log("[SW] Installation de ROSAS Salon v" + APP_VERSION);
   
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[Service Worker] Mise en cache des ressources essentielles');
-        return cache.addAll(PRECACHE_ASSETS);
-      })
-      .then(() => {
-        console.log('[Service Worker] Installation terminée');
-        return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('[Service Worker] Erreur lors de l\'installation:', error);
-      })
-  );
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      
+      // Ajouter les ressources essentielles une par une
+      const cachePromises = PRECACHE_ASSETS.map(async (url) => {
+        try {
+          // Vérifier si la ressource existe avant de la mettre en cache
+          const response = await fetch(url, { mode: 'no-cors' });
+          if (response && (response.ok || response.type === 'opaque')) {
+            await cache.put(url, response);
+            console.log("[SW] Pré-cache réussi:", url);
+          }
+        } catch (err) {
+          console.warn("[SW] Échec pré-cache pour", url, "- ignoré:", err.message);
+        }
+      });
+      
+      await Promise.all(cachePromises);
+      console.log("[SW] Pré-cache terminé");
+      
+      // Activer immédiatement le nouveau service worker
+      await self.skipWaiting();
+      
+    } catch (err) {
+      console.error("[SW] Erreur lors de l'installation:", err);
+    }
+  })());
 });
 
 // ============================================================
 // ACTIVATION
 // ============================================================
-self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activation en cours...');
+self.addEventListener("activate", (event) => {
+  console.log("[SW] Activation de ROSAS Salon v" + APP_VERSION);
   
-  // Supprimer les anciens caches
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Suppression de l\'ancien cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-    .then(() => {
-      console.log('[Service Worker] Activation terminée');
-      return self.clients.claim();
-    })
-  );
+  event.waitUntil((async () => {
+    // Nettoyer les anciens caches
+    const cacheKeys = await caches.keys();
+    const deletePromises = cacheKeys.map(key => {
+      if (key !== CACHE_NAME) {
+        console.log("[SW] Suppression ancien cache:", key);
+        return caches.delete(key);
+      }
+    });
+    
+    await Promise.all(deletePromises);
+    console.log("[SW] Nettoyage des caches terminé");
+    
+    // Prendre le contrôle de toutes les pages
+    await self.clients.claim();
+    console.log("[SW] Prêt à fonctionner");
+  })());
 });
 
 // ============================================================
-// STRATÉGIE DE CACHE : Cache-First avec réseau comme fallback
+// STRATÉGIES DE RÉCUPÉRATION
 // ============================================================
-const cacheFirstWithUpdate = async (request) => {
+
+// Stratégie "Cache d'abord" pour les assets statiques
+async function cacheFirst(request) {
   try {
-    // 1. Vérifier si la ressource est dans le cache
+    // Vérifier le cache d'abord
     const cachedResponse = await caches.match(request);
-    
-    // 2. Si trouvé en cache, retourner immédiatement
     if (cachedResponse) {
-      // En parallèle, mettre à jour le cache
-      fetchAndCache(request);
       return cachedResponse;
     }
     
-    // 3. Sinon, aller sur le réseau
-    const networkResponse = await fetchAndCache(request);
-    return networkResponse;
-    
-  } catch (error) {
-    console.error('[Service Worker] Erreur:', error);
-    
-    // Fallback pour les pages HTML
-    if (request.destination === 'document') {
-      return caches.match(OFFLINE_URL) || createOfflineResponse();
-    }
-    
-    // Fallback pour les images
-    if (request.destination === 'image') {
-      return caches.match('/assets/img/Logo.png');
-    }
-    
-    throw error;
-  }
-};
-
-// ============================================================
-// STRATÉGIE DE CACHE : Réseau d'abord avec cache comme fallback
-// ============================================================
-const networkFirstWithCache = async (request) => {
-  try {
-    // 1. Essayer d'abord le réseau
+    // Sinon, aller sur le réseau
     const networkResponse = await fetch(request);
     
-    // 2. Mettre à jour le cache
-    if (networkResponse.ok) {
+    // Mettre en cache si la réponse est valide
+    if (networkResponse && networkResponse.ok) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
+      await cache.put(request, networkResponse.clone());
     }
     
     return networkResponse;
-    
   } catch (error) {
-    console.log('[Service Worker] Réseau indisponible, utilisation du cache');
+    // Fallback pour les images
+    if (request.destination === "image") {
+      const fallbacks = [
+        "/assets/img/icon-512x512.png",
+        "/assets/img/icon-192x192.png",
+        "/assets/img/favicon.ico"
+      ];
+      
+      for (const fallback of fallbacks) {
+        const fallbackResponse = await caches.match(fallback);
+        if (fallbackResponse) return fallbackResponse;
+      }
+    }
     
-    // 3. Fallback au cache
+    throw error;
+  }
+}
+
+// Stratégie "Réseau d'abord, sinon cache" pour les pages HTML
+async function networkFirst(request) {
+  try {
+    // Essayer le réseau d'abord
+    const networkResponse = await fetch(request);
+    
+    // Mettre à jour le cache
+    if (networkResponse && networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    // En cas d'échec, chercher dans le cache
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
     
-    // 4. Fallback générique pour les pages
-    if (request.destination === 'document') {
-      return caches.match(OFFLINE_URL) || createOfflineResponse();
+    // Si c'est une page HTML, retourner la page offline
+    if (request.headers.get("Accept")?.includes("text/html") || 
+        request.destination === "document") {
+      return new Response(OFFLINE_FALLBACK_HTML, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store"
+        }
+      });
     }
     
     throw error;
   }
-};
+}
 
-// ============================================================
-// FONCTION UTILITAIRE : Récupérer et mettre en cache
-// ============================================================
-const fetchAndCache = async (request) => {
-  try {
-    const response = await fetch(request);
-    
-    // Ne pas mettre en cache les réponses d'erreur
-    if (!response.ok) {
-      return response;
-    }
-    
-    // Vérifier si c'est une ressource qu'on veut mettre en cache
-    const shouldCache = 
-      response.type === 'basic' && 
-      !request.url.includes('sockjs') &&
-      !request.url.includes('firestore') &&
-      !request.url.includes('analytics');
-    
-    if (shouldCache) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
-    }
-    
-    return response;
-    
-  } catch (error) {
-    console.error('[Service Worker] Erreur fetchAndCache:', error);
-    throw error;
+// Stratégie "Cache seulement" pour les resources critiques
+async function cacheOnly(request) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
   }
-};
-
-// ============================================================
-// FONCTION UTILITAIRE : Créer une réponse offline
-// ============================================================
-const createOfflineResponse = () => {
-  const offlineHTML = `
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Rosas - Hors ligne</title>
-      <style>
-        body {
-          background: #0a0a0a;
-          color: #F7B306;
-          font-family: 'Montserrat', sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          margin: 0;
-          text-align: center;
-        }
-        .container {
-          padding: 20px;
-          max-width: 400px;
-        }
-        h1 {
-          font-family: 'Cinzel', serif;
-          font-size: 2rem;
-          margin-bottom: 20px;
-        }
-        p {
-          color: #aaa;
-          line-height: 1.6;
-        }
-        .logo {
-          font-size: 3rem;
-          margin-bottom: 20px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="logo">🍷</div>
-        <h1>Rosas est hors ligne</h1>
-        <p>Veuillez vérifier votre connexion internet et réessayer.</p>
-        <p>Ce qui se passe à Rosas reste à Rosas... même hors ligne !</p>
-      </div>
-    </body>
-    </html>
-  `;
   
-  return new Response(offlineHTML, {
-    status: 200,
-    statusText: 'OK',
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache'
-    }
-  });
-};
+  // Fallback pour les scripts et styles
+  if (request.destination === "script" || request.destination === "style") {
+    return new Response("", {
+      status: 404,
+      statusText: "Not Found in Cache"
+    });
+  }
+  
+  throw new Error("Resource not cached");
+}
 
 // ============================================================
-// GESTION DES REQUÊTES
+// GESTION DES REQUÊTES FETCH
 // ============================================================
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // Ignorer les requêtes non-GET
-  if (request.method !== 'GET') {
-    return;
-  }
+  // Ignorer les requêtes non-GET et les protocoles spéciaux
+  if (request.method !== "GET") return;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
   
-  // Ignorer les extensions spécifiques
-  if (url.pathname.endsWith('.json') && url.pathname.includes('firestore')) {
-    return;
-  }
-  
-  // Ignorer les WebSockets
-  if (url.protocol === 'ws:' || url.protocol === 'wss:') {
-    return;
-  }
-  
-  // Stratégie par type de ressource
-  if (request.destination === 'document') {
-    // Pour les pages HTML : réseau d'abord
-    event.respondWith(networkFirstWithCache(request));
-  } else if (request.destination === 'style' || 
-             request.destination === 'script' || 
-             request.destination === 'font') {
-    // Pour CSS, JS, fonts : cache d'abord
-    event.respondWith(cacheFirstWithUpdate(request));
-  } else if (request.destination === 'image') {
-    // Pour les images : cache d'abord si locale, sinon réseau
-    if (url.origin === self.location.origin) {
-      event.respondWith(cacheFirstWithUpdate(request));
-    } else {
-      event.respondWith(networkFirstWithCache(request));
-    }
-  } else {
-    // Par défaut : réseau d'abord
-    event.respondWith(networkFirstWithCache(request));
-  }
-});
-
-// ============================================================
-// SYNCHRONISATION EN ARRIÈRE-PLAN
-// ============================================================
-self.addEventListener('sync', (event) => {
-  console.log('[Service Worker] Synchronisation en arrière-plan:', event.tag);
-  
-  if (event.tag === 'sync-game-data') {
-    event.waitUntil(syncGameData());
-  } else if (event.tag === 'sync-photos') {
-    event.waitUntil(syncPhotos());
-  }
-});
-
-// ============================================================
-// FONCTIONS DE SYNCHRO
-// ============================================================
-const syncGameData = async () => {
-  try {
-    // Récupérer les données en attente depuis IndexedDB
-    const pendingData = await getPendingData();
-    
-    for (const data of pendingData) {
-      // Synchroniser avec Firebase
-      await syncWithFirebase(data);
-      // Marquer comme synchronisé
-      await markAsSynced(data.id);
-    }
-    
-    console.log('[Service Worker] Données de jeu synchronisées');
-  } catch (error) {
-    console.error('[Service Worker] Erreur syncGameData:', error);
-    throw error; // Pour réessayer
-  }
-};
-
-const syncPhotos = async () => {
-  try {
-    const pendingPhotos = await getPendingPhotos();
-    
-    for (const photo of pendingPhotos) {
-      await uploadPhoto(photo);
-      await markPhotoAsSynced(photo.id);
-    }
-    
-    console.log('[Service Worker] Photos synchronisées');
-  } catch (error) {
-    console.error('[Service Worker] Erreur syncPhotos:', error);
-    throw error;
-  }
-};
-
-// ============================================================
-// GESTION DES NOTIFICATIONS PUSH
-// ============================================================
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  
-  const data = event.data.json();
-  const options = {
-    body: data.body || 'Nouvelle notification Rosas',
-    icon: '/assets/img/icon-192x192.png',
-    badge: '/assets/img/icon-72x72.png',
-    vibrate: [200, 100, 200],
-    data: {
-      url: data.url || '/',
-      timestamp: Date.now()
-    },
-    actions: [
-      {
-        action: 'open',
-        title: 'Ouvrir'
-      },
-      {
-        action: 'close',
-        title: 'Fermer'
+  // Stratégies par type de ressource
+  switch (request.destination) {
+    case "document": // Pages HTML
+      event.respondWith(networkFirst(request));
+      break;
+      
+    case "style":     // CSS
+    case "script":    // JavaScript
+    case "font":      // Polices
+      event.respondWith(cacheFirst(request));
+      break;
+      
+    case "image":     // Images
+      // Pour les images du projet ROSAS
+      if (url.pathname.includes("/assets/img/")) {
+        event.respondWith(cacheFirst(request));
+      } else {
+        // Pour les images externes, réseau d'abord
+        event.respondWith(networkFirst(request));
       }
-    ]
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Rosas 2025', options)
-  );
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  
-  if (event.action === 'open') {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
+      break;
+      
+    default:
+      // Par défaut, réseau d'abord
+      event.respondWith(networkFirst(request));
   }
 });
 
 // ============================================================
-// FONCTIONS UTILITAIRES (stubs)
+// COMMUNICATION AVEC L'APPLICATION
 // ============================================================
-const getPendingData = async () => {
-  // À implémenter avec IndexedDB
-  return [];
-};
-
-const syncWithFirebase = async (data) => {
-  // À implémenter avec Firebase
-  return Promise.resolve();
-};
-
-const markAsSynced = async (id) => {
-  // À implémenter avec IndexedDB
-  return Promise.resolve();
-};
-
-const getPendingPhotos = async () => {
-  // À implémenter avec IndexedDB
-  return [];
-};
-
-const uploadPhoto = async (photo) => {
-  // À implémenter avec Firebase Storage
-  return Promise.resolve();
-};
-
-const markPhotoAsSynced = async (id) => {
-  // À implémenter avec IndexedDB
-  return Promise.resolve();
-};
-
-// ============================================================
-// ÉVÉNEMENT MESSAGE (communication avec l'app)
-// ============================================================
-self.addEventListener('message', (event) => {
-  if (event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+self.addEventListener("message", (event) => {
+  const { data, ports } = event;
   
-  if (event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: APP_VERSION });
-  }
-  
-  if (event.data.type === 'CLEAR_CACHE') {
-    caches.delete(CACHE_NAME)
-      .then(() => event.ports[0].postMessage({ success: true }))
-      .catch(() => event.ports[0].postMessage({ success: false }));
+  switch (data?.type) {
+    case "SKIP_WAITING":
+      self.skipWaiting();
+      if (ports?.[0]) {
+        ports[0].postMessage({ success: true });
+      }
+      break;
+      
+    case "GET_VERSION":
+      if (ports?.[0]) {
+        ports[0].postMessage({ 
+          version: APP_VERSION,
+          cacheName: CACHE_NAME
+        });
+      }
+      break;
+      
+    case "GET_CACHE_INFO":
+      (async () => {
+        try {
+          const cache = await caches.open(CACHE_NAME);
+          const keys = await cache.keys();
+          const cachedUrls = keys.map(req => req.url);
+          
+          if (ports?.[0]) {
+            ports[0].postMessage({
+              cacheName: CACHE_NAME,
+              cacheSize: cachedUrls.length,
+              cachedUrls: cachedUrls
+            });
+          }
+        } catch (error) {
+          if (ports?.[0]) {
+            ports[0].postMessage({ error: error.message });
+          }
+        }
+      })();
+      break;
+      
+    case "CLEAR_CACHE":
+      (async () => {
+        try {
+          await caches.delete(CACHE_NAME);
+          console.log("[SW] Cache vidé à la demande");
+          
+          if (ports?.[0]) {
+            ports[0].postMessage({ success: true });
+          }
+        } catch (error) {
+          if (ports?.[0]) {
+            ports[0].postMessage({ error: error.message });
+          }
+        }
+      })();
+      break;
+      
+    case "UPDATE_CACHE":
+      // Mettre à jour des ressources spécifiques
+      (async () => {
+        try {
+          const { urls = [] } = data;
+          const cache = await caches.open(CACHE_NAME);
+          
+          const updatePromises = urls.map(async (url) => {
+            try {
+              const response = await fetch(url);
+              if (response.ok) {
+                await cache.put(url, response);
+                console.log("[SW] Ressource mise à jour:", url);
+              }
+            } catch (err) {
+              console.warn("[SW] Échec mise à jour:", url, err.message);
+            }
+          });
+          
+          await Promise.all(updatePromises);
+          
+          if (ports?.[0]) {
+            ports[0].postMessage({ 
+              success: true,
+              updatedCount: urls.length
+            });
+          }
+        } catch (error) {
+          if (ports?.[0]) {
+            ports[0].postMessage({ error: error.message });
+          }
+        }
+      })();
+      break;
   }
 });
 
-// =============================================================
-// ÉVÉNEMENT DE MISE À JOUR
 // ============================================================
-self.addEventListener('updatefound', () => {
-  console.log('[Service Worker] Nouvelle version disponible');
-  
-  // Notifier les clients
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'UPDATE_AVAILABLE',
-        version: APP_VERSION
-      });
-    });
-  });
+// GESTION DES PUSH NOTIFICATIONS (optionnel pour futur)
+// ============================================================
+self.addEventListener("push", (event) => {
+  // Pour l'instant, pas de notifications push
+  // Peut être implémenté plus tard
+  console.log("[SW] Push reçu", event.data?.text());
 });
 
-console.log('[Service Worker] Chargé et prêt');
+// ============================================================
+// GESTION DES BACKGROUND SYNC (optionnel pour futur)
+// ============================================================
+self.addEventListener("sync", (event) => {
+  console.log("[SW] Sync event:", event.tag);
+});
+
+console.log("[SW] Service Worker ROSAS Salon chargé - Version:", APP_VERSION);

@@ -1,20 +1,27 @@
 // js/cards.js
-// Base de données des 286 cartes Rosas
+// ============================================================
+// ROSAS — DECK (Mode Salon)
+// Version: 2.0.0-salon
+// - API: window.RosasCards
+// ============================================================
 
-// -------------------------
-// THÈMES DISPONIBLES
-// -------------------------
-const THEMES = [
-  { key: "HUMOUR", label: "Humour", icon: "😂" },
-  { key: "SEXY", label: "Sexy", icon: "😈" },
-  { key: "ACTION", label: "Action", icon: "🎭" },
-  { key: "POLL", label: "Sondage", icon: "📊" },
-  { key: "DINGUE", label: "Fou", icon: "🤯" },
-  { key: "DICE", label: "Dé", icon: "🎲" },
-  { key: "PHOTO", label: "Photo", icon: "📸" },
-  { key: "NEVER", label: "Jamais", icon: "🙅" },
-  { key: "RULE", label: "Règle", icon: "📜" },
-];
+(() => {
+  "use strict";
+
+  // -------------------------
+  // THÈMES DISPONIBLES
+  // -------------------------
+  const THEMES = [
+    { key: "HUMOUR", label: "Humour", icon: "😂" },
+    { key: "SEXY", label: "Sexy", icon: "😈" },
+    { key: "ACTION", label: "Action", icon: "🎭" },
+    { key: "POLL", label: "Sondage", icon: "📊" },
+    { key: "DINGUE", label: "Fou", icon: "🤯" },
+    { key: "DICE", label: "Dé", icon: "🎲" },
+    { key: "PHOTO", label: "Photo", icon: "📸" },
+    { key: "NEVER", label: "Jamais", icon: "🙅" },
+    { key: "RULE", label: "Règle", icon: "📜" },
+  ];
 
 // -------------------------
 // BASE DE DONNÉES DES CARTES
@@ -493,55 +500,143 @@ const CARDS_DATABASE = {
 ]
     };
 
-// -------------------------
-// FONCTIONS DE GESTION DES CARTES
-// -------------------------
-let availableCards = {};
-let usedCards = {};
+  // ============================================================
+  // INTERNAL STATE
+  // ============================================================
+  let players = []; // prénoms actuels (optionnel)
+  let availableCards = {};
+  let usedCards = {};
 
-function initializeCards() {
-  // Initialiser les cartes disponibles et utilisées
-  for (const theme in CARDS_DATABASE) {
-    availableCards[theme] = [...CARDS_DATABASE[theme]];
-    usedCards[theme] = [];
+  // Fisher–Yates (mélange non biaisé)
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
   }
-}
 
-function shuffleCards() {
-  for (const theme in availableCards) {
-    availableCards[theme] = availableCards[theme]
-      .sort(() => Math.random() - 0.5);
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
   }
-}
 
-function getRandomCard(theme) {
-  if (!availableCards[theme] || availableCards[theme].length === 0) {
-    // Réinitialiser si toutes les cartes ont été utilisées
-    availableCards[theme] = [...usedCards[theme]];
-    usedCards[theme] = [];
-    shuffleCards();
+  function sanitizePlayers(list) {
+    if (!Array.isArray(list)) return [];
+    const clean = list
+      .map((s) => String(s || "").trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    // Uniques (évite doublons)
+    return [...new Set(clean)];
   }
-  
-  const card = availableCards[theme].pop();
-  usedCards[theme].push(card);
-  return card;
-}
 
-function getGameStats() {
-  const totalCards = Object.values(CARDS_DATABASE).reduce((sum, cards) => sum + cards.length, 0);
-  const usedTotal = Object.values(usedCards).reduce((sum, cards) => sum + cards.length, 0);
-  const remainingTotal = Object.values(availableCards).reduce((sum, cards) => sum + cards.length, 0);
-  
-  return {
-    totalCards,
-    usedCards: usedTotal,
-    remainingCards: remainingTotal,
-    progress: Math.round((usedTotal / totalCards) * 100)
-  };
-}
+  function rebuildDecks() {
+    availableCards = {};
+    usedCards = {};
+    for (const themeKey of Object.keys(CARDS_DATABASE)) {
+      availableCards[themeKey] = deepClone(CARDS_DATABASE[themeKey]);
+      usedCards[themeKey] = [];
+      shuffleArray(availableCards[themeKey]);
+    }
+  }
 
-// Initialiser les cartes au chargement
-initializeCards();
-shuffleCards();
+  function ensureTheme(themeKey) {
+    if (!CARDS_DATABASE[themeKey]) {
+      throw new Error(`Thème inconnu: ${themeKey}`);
+    }
+  }
 
-console.log("✅ cards.js chargé avec 286 cartes");
+  function fillPollOptions(card) {
+    // Si pas de poll/designate => rien
+    if (!card || (card.ui !== "poll" && card.ui !== "designate")) return card;
+
+    // Si on a des joueurs, on remplace "Joueur 1/2/3" par des noms réels
+    if (players.length > 0 && Array.isArray(card.options) && card.options.length > 0) {
+      const mapped = card.options.map((opt, idx) => {
+        const isPlaceholder = /^Joueur\s*\d+$/i.test(String(opt).trim());
+        if (isPlaceholder) return players[idx % players.length];
+        return opt;
+      });
+      return { ...card, options: mapped };
+    }
+
+    // Si pas d'options => on en fabrique
+    if (card.ui === "poll" && (!Array.isArray(card.options) || card.options.length === 0)) {
+      const fallback = players.length
+        ? players.slice(0, 4)
+        : ["Joueur 1", "Joueur 2", "Joueur 3", "Personne"];
+      return { ...card, options: fallback };
+    }
+
+    return card;
+  }
+
+  // ============================================================
+  // PUBLIC API
+  // ============================================================
+  function init(playerList = []) {
+    players = sanitizePlayers(playerList);
+    rebuildDecks();
+    return true;
+  }
+
+  function draw(themeKey) {
+    ensureTheme(themeKey);
+
+    // Recycle si vide
+    if (!availableCards[themeKey] || availableCards[themeKey].length === 0) {
+      availableCards[themeKey] = usedCards[themeKey] || [];
+      usedCards[themeKey] = [];
+      shuffleArray(availableCards[themeKey]);
+    }
+
+    const card = availableCards[themeKey].pop();
+    if (!card) return null;
+
+    usedCards[themeKey].push(card);
+
+    // inject options poll avec joueurs
+    return fillPollOptions(card);
+  }
+
+  function stats() {
+    const totalCards = Object.values(CARDS_DATABASE).reduce((sum, cards) => sum + cards.length, 0);
+    const usedTotal = Object.values(usedCards).reduce((sum, cards) => sum + (cards?.length || 0), 0);
+    const remainingTotal = Object.values(availableCards).reduce((sum, cards) => sum + (cards?.length || 0), 0);
+    const progress = totalCards > 0 ? Math.round((usedTotal / totalCards) * 100) : 0;
+
+    return {
+      totalCards,
+      usedCards: usedTotal,
+      remainingCards: remainingTotal,
+      progress,
+    };
+  }
+
+  function themes() {
+    return deepClone(THEMES);
+  }
+
+  function reset() {
+    rebuildDecks();
+    return true;
+  }
+
+  // ============================================================
+  // Boot (compatible avec ton ancien code)
+  // ============================================================
+  init([]);
+
+  // Expose global (simple pour ton app.js)
+  window.RosasCards = Object.freeze({
+    init,
+    draw,
+    stats,
+    themes,
+    reset,
+    // utile debug
+    _db: CARDS_DATABASE,
+  });
+
+  console.log("✅ cards.js chargé (RosasCards prêt)");
+})();
