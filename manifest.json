@@ -153,8 +153,8 @@
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
-      "title": "Rosas - Rejoins ma soirée",
-      "text": "Je t'invite à rejoindre ma soirée Rosas ! Code: %s",
+      "title": "Rosas - Rejoins la soirée de Laurent",
+      "text": "Je t'invite à rejoindre la soirée de Laurent à Rosas ! Code: %s",
       "url": "/?party=%s",
       "files": [
         {
@@ -197,7 +197,7 @@
   ],
   
   "serviceworker": {
-    "src": "sw.js",
+    "src": "service-worker.js",
     "scope": "/",
     "type": "module"
   },

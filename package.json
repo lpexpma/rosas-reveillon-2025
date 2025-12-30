@@ -1,5 +1,79 @@
 {
+  "name": "rosas-reveillon-2025",
+  "version": "1.0.0",
+  "description": "Jeu de soirée exclusif Rosas - Édition Réveillon du 31 décembre 2025",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "clean": "rm -rf dist node_modules/.vite",
+    "clean:full": "rm -rf dist node_modules package-lock.json",
+    "postinstall": "echo '✅ Dépendances installées. Lancez \\'npm run dev\\' pour démarrer le serveur de développement.'",
+    "test": "echo \"Error: pas de tests spécifiés\" && exit 0",
+    "analyze": "npx vite-bundle-analyzer",
+    "lint": "echo \"Linting...\"",
+    "format": "echo \"Formatting...\"",
+    "prepare": "husky install"
+  },
   "dependencies": {
-    "firebase": "^12.7.0"
+    "firebase": "^12.7.0",
+    "idb": "^8.0.0",
+    "particles.js": "^2.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-legacy": "^5.4.0",
+    "vite": "^5.4.8",
+    "vite-plugin-pwa": "^0.20.0",
+    "vite-plugin-html": "^3.2.2",
+    "vite-plugin-compression": "^0.5.1",
+    "vite-plugin-checker": "^0.6.5",
+    "husky": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "keywords": [
+    "game",
+    "party",
+    "rosas",
+    "new-year",
+    "reveillon",
+    "2025",
+    "multiplayer",
+    "drinking-game",
+    "pwa",
+    "firebase"
+  ],
+  "author": "Laurent <contact@rosas-party.com>",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/votre-username/rosas-reveillon-2025.git"
+  },
+  "bugs": {
+    "url": "https://github.com/votre-username/rosas-reveillon-2025/issues"
+  },
+  "homepage": "https://rosas-2025.vercel.app",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "browserslist": [
+    "defaults",
+    "not IE 11",
+    "maintained node versions"
+  ],
+  "volta": {
+    "node": "18.17.0"
+  },
+  "private": true,
+  "pwa": {
+    "name": "Rosas - Réveillon 2025",
+    "short_name": "Rosas2025",
+    "description": "Jeu de soirée exclusif pour le réveillon du 31 décembre 2025",
+    "theme_color": "#F7B306",
+    "background_color": "#0A0A0A"
   }
 }

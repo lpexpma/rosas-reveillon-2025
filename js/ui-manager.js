@@ -65,7 +65,8 @@ class UIManager {
       'btn-continue', 'btn-join', 'copy-link', 'btn-start-game',
       'btn-draw', 'btn-pass', 'btn-pass2', 'btn-validate',
       'btn-photo-save', 'btn-photo-skip', 'btn-album-send',
-      'btn-roll-dice', 'btn-yes', 'btn-no'
+      'btn-roll-dice', 'btn-yes', 'btn-no', 'whatsapp-share-btn',
+      'photo-skip-btn', 'back-to-game-btn'
     ];
     
     buttonIds.forEach(id => {
@@ -78,7 +79,8 @@ class UIManager {
       'players', 'counters', 'themes', 'album-grid',
       'card-content', 'card-actions', 'dice-rules',
       'active-rule', 'photo-preview', 'game-stats',
-      'particles', 'notifications-container'
+      'particles', 'notifications-container', 'main',
+      'card-container'
     ];
     
     containerIds.forEach(id => {
@@ -250,7 +252,19 @@ class UIManager {
     
     themesEl.innerHTML = '';
     
-    window.THEMES.forEach(theme => {
+    const themes = window.THEMES || [
+      { key: 'HUMOUR', icon: '😂', label: 'Humour' },
+      { key: 'SEXY', icon: '😘', label: 'Sexy' },
+      { key: 'ACTION', icon: '🎬', label: 'Action' },
+      { key: 'POLL', icon: '📊', label: 'Sondage' },
+      { key: 'DINGUE', icon: '🤪', label: 'Dingue' },
+      { key: 'DICE', icon: '🎲', label: 'Dé' },
+      { key: 'PHOTO', icon: '📸', label: 'Photo' },
+      { key: 'NEVER', icon: '🙅', label: 'Jamais' },
+      { key: 'RULE', icon: '📜', label: 'Règle' }
+    ];
+    
+    themes.forEach(theme => {
       const themeOption = this.createThemeOption(theme);
       themesEl.appendChild(themeOption);
     });
@@ -299,13 +313,13 @@ class UIManager {
     if (!cardContentEl || !cardActionsEl) return;
     
     // Thème de la carte
-    const themeMeta = window.THEMES.find(t => t.key === card.theme);
+    const themeMeta = window.THEMES?.find(t => t.key === card.theme) || { icon: "🎴", label: "Carte" };
     const themeColors = this.uiState.themeColors[card.theme] || this.uiState.themeColors.HUMOUR;
     
     if (cardThemeEl) {
       cardThemeEl.innerHTML = `
-        <span style="color:${themeColors.primary}">${themeMeta?.icon ?? "🎴"}</span>
-        <span>${themeMeta?.label ?? "Carte"}</span>
+        <span style="color:${themeColors.primary}">${themeMeta.icon}</span>
+        <span>${themeMeta.label}</span>
       `;
     }
     
@@ -343,8 +357,7 @@ class UIManager {
         break;
         
       case "photo":
-        this.showScreen("screen-photo");
-        this.updatePhotoMission(card.text);
+        this.showPhotoChallenge(card);
         return;
         
       case "poll":
@@ -432,6 +445,114 @@ class UIManager {
         </button>
       </div>
     `;
+  }
+  
+  // -------------------------
+  // DESK PHOTOS AVEC WHATSAPP
+  // -------------------------
+  
+  // Afficher le défi photo
+  showPhotoChallenge(cardData) {
+    const photoDeskHTML = `
+      <div class="photo-desk">
+        <div class="photo-header">
+          <h2 class="photo-title">IMMORTALISER ROSAS</h2>
+          <p class="photo-subtitle">Capturez un moment d'exception</p>
+        </div>
+        
+        <div class="photo-instruction">
+          <p class="instruction-text">${cardData.text || "Photo 'team': 4 personnes dans le cadre, toutes avec une pose différente. Plus c'est absurde, mieux c'est."}</p>
+        </div>
+        
+        <div class="photo-moment">
+          <h3 class="moment-title">Moment Rosas 2025</h3>
+          <p class="moment-theme"><strong>Cocos en foulez</strong></p>
+        </div>
+        
+        <div class="photo-actions">
+          <!-- Bouton WhatsApp - remplace "Ajouter à l'album" -->
+          <button class="btn-whatsapp-share" id="whatsapp-share-btn">
+            <span class="whatsapp-icon">📸</span>
+            PARTAGER SUR WHATSAPP
+          </button>
+          
+          <!-- Bouton Passer -->
+          <button class="btn-photo-skip" id="photo-skip-btn">
+            PASSER
+          </button>
+        </div>
+        
+        <div class="photo-footer">
+          <p class="confidential-text">
+            <a href="#" class="confidential-link">Confidentiel : Cas souvenirs resteront entre nous, comme promis par Laurent</a>
+          </p>
+          
+          <a href="#" class="back-to-game" id="back-to-game-btn">
+            RETOUR AU JEU
+          </a>
+        </div>
+      </div>
+    `;
+    
+    // Afficher dans le conteneur approprié
+    const container = this.elements.containers.card || this.elements.containers.main || document.body;
+    container.innerHTML = photoDeskHTML;
+    
+    // Ajouter les événements
+    this.setupPhotoDeskEvents();
+    
+    // Afficher l'écran de carte si disponible
+    if (this.elements.screens['screen-card']) {
+      this.showScreen("screen-card");
+    }
+  }
+  
+  // Configurer les événements du desk photo
+  setupPhotoDeskEvents() {
+    // Bouton WhatsApp
+    const whatsappBtn = document.getElementById('whatsapp-share-btn');
+    if (whatsappBtn) {
+      whatsappBtn.addEventListener('click', () => {
+        if (window.RosasWhatsApp && typeof window.RosasWhatsApp.openWhatsAppGroup === 'function') {
+          window.RosasWhatsApp.openWhatsAppGroup();
+        } else {
+          // Fallback direct
+          window.open('https://chat.whatsapp.com/C7NM0X8RfTN0a1wRjN22WS', '_blank');
+        }
+      });
+    }
+    
+    // Bouton Passer
+    const skipBtn = document.getElementById('photo-skip-btn');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        this.closePhotoDesk();
+      });
+    }
+    
+    // Bouton Retour au jeu
+    const backBtn = document.getElementById('back-to-game-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closePhotoDesk();
+      });
+    }
+    
+    // Lien confidentiel
+    const confidentialLink = document.querySelector('.confidential-link');
+    if (confidentialLink) {
+      confidentialLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('Vos photos sont partagées uniquement sur le groupe WhatsApp privé. Aucune photo n\'est stockée sur nos serveurs.');
+      });
+    }
+  }
+  
+  // Fermer le desk photo
+  closePhotoDesk() {
+    // Retourner au jeu normal
+    this.showScreen("screen-game");
   }
   
   // -------------------------

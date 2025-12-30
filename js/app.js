@@ -1,24 +1,106 @@
 // js/app.js
-// Version 2.1 - Application Rosas Réveillon 2025 avec WhatsApp et Jauge de Sobriété
+// Version 2.2 - Application Rosas Réveillon 2025 avec WhatsApp, Jauge de Sobriété et dépendances vérifiées
+
+// -------------------------
+// FONCTIONS UTILITAIRES GLOBALES
+// -------------------------
+function showFatalError(title, message) {
+  console.error(`❌ FATAL ERROR: ${title} - ${message}`);
+  
+  const errorDiv = document.createElement('div');
+  errorDiv.id = 'fatal-error';
+  errorDiv.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 10, 0.98);
+    color: #F7B306;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    padding: 20px;
+    text-align: center;
+    font-family: 'Cinzel', serif;
+  `;
+  
+  errorDiv.innerHTML = `
+    <div style="font-size: 3rem; margin-bottom: 20px;">⚠️</div>
+    <h1 style="color: #FF6B6B; font-size: 1.8rem; margin-bottom: 15px;">${title}</h1>
+    <p style="color: var(--silver); max-width: 400px; line-height: 1.5;">${message}</p>
+    <div style="margin-top: 30px; color: var(--silver-dark); font-size: 0.9rem;">
+      <i class="fas fa-redo"></i> Rechargez la page pour réessayer
+    </div>
+  `;
+  
+  document.body.appendChild(errorDiv);
+}
+
+function waitForDependency(dependencyName, maxWait = 5000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const checkInterval = setInterval(() => {
+      if (window[dependencyName]) {
+        clearInterval(checkInterval);
+        resolve(window[dependencyName]);
+      } else if (Date.now() - startTime > maxWait) {
+        clearInterval(checkInterval);
+        reject(new Error(`Dépendance ${dependencyName} non chargée après ${maxWait}ms`));
+      }
+    }, 100);
+  });
+}
 
 // -------------------------
 // INITIALISATION
 // -------------------------
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("🎉 Rosas Réveillon 2025 - Version 2.1");
+  console.log("🎉 Rosas Réveillon 2025 - Version 2.2");
   
-  // Initialiser les modules globaux
-  initializeApplication();
-  
-  // Configurer les événements
-  setupGlobalEventListeners();
-  
-  // Vérifier et restaurer la dernière session
-  restoreLastSession();
-  
-  // Démarrer les animations
-  startAmbientAnimations();
+  // Vérifier les dépendances critiques
+  checkCriticalDependencies()
+    .then(() => {
+      // Initialiser les modules globaux
+      initializeApplication();
+      
+      // Configurer les événements
+      setupGlobalEventListeners();
+      
+      // Vérifier et restaurer la dernière session
+      restoreLastSession();
+      
+      // Démarrer les animations
+      startAmbientAnimations();
+      
+      console.log("✅ Application initialisée avec succès");
+    })
+    .catch(error => {
+      showFatalError("Erreur de chargement", error.message);
+    });
 });
+
+async function checkCriticalDependencies() {
+  console.log("🔍 Vérification des dépendances...");
+  
+  // Liste des dépendances critiques
+  const criticalDeps = [
+    'CARDS_DATABASE',
+    'THEMES'
+  ];
+  
+  // Vérifier chaque dépendance
+  for (const dep of criticalDeps) {
+    if (!window[dep]) {
+      throw new Error(`La dépendance ${dep} n'a pas été chargée. Vérifiez l'ordre de chargement des scripts.`);
+    }
+  }
+  
+  console.log("✅ Toutes les dépendances sont chargées");
+}
 
 // -------------------------
 // SOBRIETY GAUGE MANAGER
@@ -51,24 +133,41 @@ class SobrietyGaugeManager {
     
     if (!gauge) {
       gauge = this.createGaugeElement();
-      playerCard.querySelector('.player-info').appendChild(gauge);
+      const playerInfo = playerCard.querySelector('.player-info');
+      if (playerInfo) {
+        playerInfo.appendChild(gauge);
+      }
     }
     
     const fill = gauge.querySelector('.gauge-fill');
-    fill.style.width = `${percentage}%`;
-    fill.className = `gauge-fill ${level.color}`;
+    if (fill) {
+      fill.style.width = `${percentage}%`;
+      fill.className = `gauge-fill ${level.color}`;
+    }
     
     const info = gauge.querySelector('.gauge-info');
     if (info) {
-      info.querySelector('.current-sips').textContent = `${sips} verres`;
-      info.querySelector('.gauge-status').textContent = `${level.status} ${level.emoji}`;
+      const currentSips = info.querySelector('.current-sips');
+      const gaugeStatus = info.querySelector('.gauge-status');
+      
+      if (currentSips) currentSips.textContent = `${sips} verres`;
+      if (gaugeStatus) gaugeStatus.textContent = `${level.status} ${level.emoji}`;
     }
     
     this.updateVisibility();
   }
 
   createGaugeElement() {
-    const template = `
+    const container = document.createElement('div');
+    container.className = 'sobriety-gauge-container player-gauge';
+    
+    const gaugeHTML = `
+      <div class="gauge-header">
+        <div class="gauge-title">
+          <i class="fas fa-wine-glass-alt"></i>
+          <span>Niveau d'ébriété</span>
+        </div>
+      </div>
       <div class="sobriety-gauge">
         <div class="gauge-fill gauge-level-0" style="width: 0%"></div>
       </div>
@@ -78,10 +177,7 @@ class SobrietyGaugeManager {
       </div>
     `;
     
-    const container = document.createElement('div');
-    container.className = 'sobriety-gauge-container player-gauge';
-    container.innerHTML = template;
-    
+    container.innerHTML = gaugeHTML;
     return container;
   }
 
@@ -92,11 +188,11 @@ class SobrietyGaugeManager {
     const toggleBtn = document.querySelector('.gauge-visibility-toggle');
     
     if (this.visibleToAll) {
-      gameContainer.classList.remove('gauges-hidden');
-      toggleBtn.textContent = '👁️ Masquer jauges';
+      if (gameContainer) gameContainer.classList.remove('gauges-hidden');
+      if (toggleBtn) toggleBtn.textContent = '👁️ Masquer jauges';
     } else {
-      gameContainer.classList.add('gauges-hidden');
-      toggleBtn.textContent = '👁️ Afficher toutes';
+      if (gameContainer) gameContainer.classList.add('gauges-hidden');
+      if (toggleBtn) toggleBtn.textContent = '👁️ Afficher toutes';
     }
     
     localStorage.setItem('gaugesVisible', this.visibleToAll);
@@ -111,6 +207,10 @@ class SobrietyGaugeManager {
     } else {
       gameContainer.classList.remove('gauges-hidden');
     }
+  }
+
+  refreshGaugesVisibility() {
+    this.updateVisibility();
   }
 
   init() {
@@ -153,17 +253,24 @@ class WhatsAppSharingManager {
   }
 
   shareCurrentPhoto() {
-    const photos = window.RosasGameState?.getPhotos?.();
-    const lastPhoto = photos?.[photos.length - 1];
-    
-    if (!lastPhoto) {
-      window.RosasUI?.showNotification?.("📸", "Aucune photo", "Prenez d'abord une photo");
+    if (!window.RosasGameState || !window.RosasGameState.getPhotos) {
+      console.warn("⚠️ GameState non disponible pour le partage WhatsApp");
       return;
     }
     
-    const partyCode = window.RosasGameState?.partyCode || "ROSAS2025";
-    const playerName = window.RosasGameState?.getCurrentPlayer?.()?.name || "Anonyme";
-    const mission = window.RosasGameState?.currentPhotoMission || "Défi Rosas";
+    const photos = window.RosasGameState.getPhotos();
+    const lastPhoto = photos?.[photos.length - 1];
+    
+    if (!lastPhoto) {
+      if (window.RosasUI && window.RosasUI.showNotification) {
+        window.RosasUI.showNotification("📸", "Aucune photo", "Prenez d'abord une photo");
+      }
+      return;
+    }
+    
+    const partyCode = window.RosasGameState.partyCode || "ROSAS2025";
+    const playerName = window.RosasGameState.getCurrentPlayer?.()?.name || "Anonyme";
+    const mission = window.RosasGameState.currentPhotoMission || "Défi Rosas";
     
     const message = encodeURIComponent(
       `📸 *Rosas 2025 - Moment d'exception*\n\n` +
@@ -178,16 +285,24 @@ class WhatsAppSharingManager {
     
     window.open(whatsappShareLink, '_blank');
     
-    window.RosasStorage?.updateUserStat?.('photosShared', 1);
+    if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+      window.RosasStorage.updateUserStat('photosShared', 1);
+    }
     
-    window.RosasUI?.showToast?.("✅ Photo partagée au groupe WhatsApp", "success");
+    if (window.RosasUI && window.RosasUI.showToast) {
+      window.RosasUI.showToast("✅ Photo partagée au groupe WhatsApp", "success");
+    } else if (window.RosasUI && window.RosasUI.showNotification) {
+      window.RosasUI.showNotification("✅", "Photo partagée", "Envoyée au groupe WhatsApp");
+    }
   }
 
   shareGameInvite(partyCode) {
+    const playerName = window.RosasGameState?.currentUserPseudo || "Moi";
+    
     const message = encodeURIComponent(
       `🎉 *Rejoins ma partie Rosas 2025 !*\n\n` +
       `🎮 *Code de la partie:* ${partyCode}\n` +
-      `👤 *Hôte:* ${window.RosasGameState?.currentUserPseudo || "Moi"}\n\n` +
+      `👤 *Hôte:* ${playerName}\n\n` +
       `Clique sur le lien pour rejoindre :\n` +
       `${window.location.origin}?party=${partyCode}\n\n` +
       `À tout de suite ! 🥂`
@@ -201,61 +316,74 @@ class WhatsAppSharingManager {
 // -------------------------
 // INITIALISATION DE L'APPLICATION
 // -------------------------
-function initializeApplication() {
+async function initializeApplication() {
   console.log("🚀 Initialisation de l'application...");
   
-  // Vérifier que tous les modules sont chargés
-  if (!window.RosasGameState) {
-    console.error("❌ GameState non chargé");
-    window.RosasGameState = new GameState();
+  try {
+    // Attendre que les modules critiques soient disponibles
+    await waitForDependency('GameState', 3000);
+    await waitForDependency('StorageLocal', 3000);
+    await waitForDependency('UIManager', 3000);
+    
+    // Initialiser les instances globales si elles n'existent pas
+    if (!window.RosasGameState) {
+      window.RosasGameState = new GameState();
+    }
+    
+    if (!window.RosasStorage) {
+      window.RosasStorage = new StorageLocal();
+    }
+    
+    if (!window.RosasUI) {
+      window.RosasUI = new UIManager(window.RosasGameState);
+    }
+    
+    // Initialiser les nouveaux managers
+    window.RosasSobrietyGauge = new SobrietyGaugeManager();
+    window.RosasWhatsApp = new WhatsAppSharingManager();
+    
+    // Configurer les callbacks
+    setupCallbacks();
+    
+    // Charger les paramètres utilisateur
+    loadUserSettings();
+    
+    // Initialiser l'interface utilisateur
+    if (window.RosasUI.initialize) {
+      window.RosasUI.initialize();
+    }
+    
+    // Initialiser les jauges
+    if (window.RosasSobrietyGauge) {
+      window.RosasSobrietyGauge.init();
+    }
+    
+    console.log("✅ Application initialisée avec WhatsApp et Jauges");
+    
+  } catch (error) {
+    console.error("❌ Erreur d'initialisation:", error);
+    throw error;
   }
-  
-  if (!window.RosasStorage) {
-    console.error("❌ Storage non chargé");
-    window.RosasStorage = new StorageLocal();
-  }
-  
-  if (!window.RosasSyncRoom) {
-    console.error("❌ SyncRoom non chargé");
-    window.RosasSyncRoom = new SyncRoom(
-      window.RosasGameState,
-      window.RosasStorage,
-      window.RosasUI
-    );
-  }
-  
-  if (!window.RosasUI) {
-    console.error("❌ UI Manager non chargé");
-    window.RosasUI = new UIManager(window.RosasGameState);
-  }
-  
-  // Initialiser les nouveaux managers
-  window.RosasSobrietyGauge = new SobrietyGaugeManager();
-  window.RosasWhatsApp = new WhatsAppSharingManager();
-  
-  // Configurer les callbacks
-  setupCallbacks();
-  
-  // Charger les paramètres utilisateur
-  loadUserSettings();
-  
-  // Initialiser les jauges
-  window.RosasSobrietyGauge.init();
-  
-  console.log("✅ Application initialisée avec WhatsApp et Jauges");
 }
 
 // -------------------------
 // GESTION DES PARAMÈTRES UTILISATEUR
 // -------------------------
 function loadUserSettings() {
+  if (!window.RosasStorage || !window.RosasStorage.loadUserSettings) {
+    console.warn("⚠️ Storage non disponible pour charger les paramètres");
+    return;
+  }
+  
   const settings = window.RosasStorage.loadUserSettings();
   
   if (settings) {
-    window.RosasGameState.currentUserPseudo = settings.pseudo || "";
-    window.RosasGameState.userGender = settings.gender || "unknown";
+    if (window.RosasGameState) {
+      window.RosasGameState.currentUserPseudo = settings.pseudo || "";
+      window.RosasGameState.userGender = settings.gender || "unknown";
+    }
     
-    if (window.RosasUI.updateWelcomeMessage) {
+    if (window.RosasUI && window.RosasUI.updateWelcomeMessage) {
       window.RosasUI.updateWelcomeMessage();
     }
     
@@ -269,8 +397,13 @@ function loadUserSettings() {
 }
 
 function saveUserSettings() {
+  if (!window.RosasStorage || !window.RosasStorage.saveUserSettings) {
+    console.warn("⚠️ Storage non disponible pour sauvegarder les paramètres");
+    return;
+  }
+  
   const pseudoInput = document.getElementById('user-pseudo');
-  const gender = window.RosasGameState.userGender || "unknown";
+  const gender = window.RosasGameState?.userGender || "unknown";
   
   if (pseudoInput && pseudoInput.value.trim()) {
     const settings = {
@@ -283,8 +416,11 @@ function saveUserSettings() {
     };
     
     window.RosasStorage.saveUserSettings(settings);
-    window.RosasGameState.currentUserPseudo = settings.pseudo;
-    window.RosasGameState.userGender = gender;
+    
+    if (window.RosasGameState) {
+      window.RosasGameState.currentUserPseudo = settings.pseudo;
+      window.RosasGameState.userGender = gender;
+    }
     
     console.log(`💾 Utilisateur sauvegardé: ${settings.pseudo}`);
   }
@@ -316,7 +452,9 @@ function handleGlobalClick(e) {
   if (target.hasAttribute('data-nav')) {
     e.preventDefault();
     const screenId = target.getAttribute('data-nav');
-    window.RosasUI.showScreen(screenId);
+    if (window.RosasUI && window.RosasUI.showScreen) {
+      window.RosasUI.showScreen(screenId);
+    }
     return;
   }
   
@@ -330,16 +468,20 @@ function handleGlobalClick(e) {
   // WhatsApp sharing button
   if (target.closest('#whatsapp-share-btn')) {
     e.preventDefault();
-    window.RosasWhatsApp.shareCurrentPhoto();
+    if (window.RosasWhatsApp) {
+      window.RosasWhatsApp.shareCurrentPhoto();
+    }
     return;
   }
   
   // WhatsApp invite button
   if (target.closest('#whatsapp-invite-btn')) {
     e.preventDefault();
-    const partyCode = window.RosasGameState.partyCode;
-    if (partyCode) {
-      window.RosasWhatsApp.shareGameInvite(partyCode);
+    if (window.RosasWhatsApp && window.RosasGameState) {
+      const partyCode = window.RosasGameState.partyCode;
+      if (partyCode) {
+        window.RosasWhatsApp.shareGameInvite(partyCode);
+      }
     }
     return;
   }
@@ -352,12 +494,14 @@ function handleGlobalClick(e) {
 
 function handleKeyPress(e) {
   if (e.key === 'Escape') {
-    window.RosasUI.showScreen('screen-home');
+    if (window.RosasUI && window.RosasUI.showScreen) {
+      window.RosasUI.showScreen('screen-home');
+    }
     return;
   }
   
   if (e.key === 'Enter') {
-    const activeScreen = window.RosasUI.currentScreen;
+    const activeScreen = window.RosasUI?.currentScreen;
     
     switch(activeScreen) {
       case 'screen-pseudo':
@@ -405,7 +549,7 @@ function setupButtonListeners() {
       btn.innerHTML = '<i class="whatsapp-icon">📱</i> Inviter via WhatsApp';
       btn.addEventListener('click', () => {
         const partyCode = window.RosasGameState.partyCode;
-        if (partyCode) {
+        if (partyCode && window.RosasWhatsApp) {
           window.RosasWhatsApp.shareGameInvite(partyCode);
         }
       });
@@ -456,7 +600,9 @@ function setupButtonListeners() {
   if (noBtn) noBtn.addEventListener('click', () => handleNeverAnswer(false));
   
   // Setup WhatsApp button for photos
-  window.RosasWhatsApp.setupButton();
+  if (window.RosasWhatsApp) {
+    window.RosasWhatsApp.setupButton();
+  }
 }
 
 function handleButtonClick(button) {
@@ -476,11 +622,11 @@ function handleButtonClick(button) {
       break;
       
     case 'btn-show-stats':
-      window.RosasUI.showScreen('screen-stats');
+      if (window.RosasUI) window.RosasUI.showScreen('screen-stats');
       break;
       
     case 'btn-show-album':
-      window.RosasUI.showScreen('screen-album');
+      if (window.RosasUI) window.RosasUI.showScreen('screen-album');
       break;
       
     case 'btn-show-settings':
@@ -488,7 +634,7 @@ function handleButtonClick(button) {
       break;
       
     case 'btn-refresh-players':
-      window.RosasUI.renderPlayers();
+      if (window.RosasUI) window.RosasUI.renderPlayers();
       break;
       
     case 'btn-end-game':
@@ -509,14 +655,14 @@ function setupGameListeners() {
   
   if (window.RosasGameState && window.RosasGameState.onPlayersUpdate) {
     window.RosasGameState.onPlayersUpdate = (players) => {
-      window.RosasUI.renderPlayers();
+      if (window.RosasUI) window.RosasUI.renderPlayers();
       updateAllGauges();
     };
   }
   
   if (window.RosasGameState && window.RosasGameState.onCardUpdate) {
     window.RosasGameState.onCardUpdate = (card) => {
-      window.RosasUI.displayCard(card);
+      if (window.RosasUI) window.RosasUI.displayCard(card);
     };
   }
   
@@ -547,20 +693,26 @@ function setupGameListeners() {
 }
 
 function setupCallbacks() {
+  if (!window.RosasGameState) return;
+  
   window.RosasGameState.onStateChange = (state) => {
     updateUIFromState(state);
-    window.RosasStorage.saveGameState(state);
+    if (window.RosasStorage && window.RosasStorage.saveGameState) {
+      window.RosasStorage.saveGameState(state);
+    }
   };
   
   window.RosasGameState.onPlayersUpdate = (players) => {
-    window.RosasUI.renderPlayers();
-    window.RosasStorage.savePlayersData(players);
+    if (window.RosasUI) window.RosasUI.renderPlayers();
+    if (window.RosasStorage && window.RosasStorage.savePlayersData) {
+      window.RosasStorage.savePlayersData(players);
+    }
     updateAllGauges();
   };
   
   window.RosasGameState.onCardUpdate = (card) => {
-    window.RosasUI.displayCard(card);
-    if (card) {
+    if (window.RosasUI) window.RosasUI.displayCard(card);
+    if (card && window.RosasStorage && window.RosasStorage.updateCardStat) {
       window.RosasStorage.updateCardStat(card.id, card.theme, 'drawn');
     }
   };
@@ -577,18 +729,27 @@ function setupCallbacks() {
 // -------------------------
 function handleContinue() {
   saveUserSettings();
-  window.RosasUI.showScreen('screen-join');
+  if (window.RosasUI) {
+    window.RosasUI.showScreen('screen-join');
+  }
 }
 
 function handleCreateParty() {
-  const pseudo = window.RosasGameState.currentUserPseudo;
-  if (!pseudo) {
-    window.RosasUI.showNotification("❌", "Erreur", "Choisis un pseudo d'abord");
-    window.RosasUI.showScreen('screen-pseudo');
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
     return;
   }
   
-  const partyCode = window.RosasSyncRoom.generateRoomCode(6);
+  const pseudo = window.RosasGameState.currentUserPseudo;
+  if (!pseudo) {
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("❌", "Erreur", "Choisis un pseudo d'abord");
+      window.RosasUI.showScreen('screen-pseudo');
+    }
+    return;
+  }
+  
+  const partyCode = generateRandomCode(6);
   
   window.RosasGameState.partyCode = partyCode;
   window.RosasGameState.isOnline = false;
@@ -604,8 +765,10 @@ function handleCreateParty() {
   
   updatePartyLink(partyCode);
   
-  window.RosasUI.showScreen('screen-lobby');
-  window.RosasUI.showNotification("🎉", "Partie créée", `Code: ${partyCode}`);
+  if (window.RosasUI) {
+    window.RosasUI.showScreen('screen-lobby');
+    window.RosasUI.showNotification("🎉", "Partie créée", `Code: ${partyCode}`);
+  }
   
   // Ajouter le bouton WhatsApp dans le lobby
   setTimeout(() => {
@@ -616,7 +779,9 @@ function handleCreateParty() {
       btn.className = 'button button-whatsapp';
       btn.innerHTML = '<i class="whatsapp-icon">📱</i> Inviter via WhatsApp';
       btn.addEventListener('click', () => {
-        window.RosasWhatsApp.shareGameInvite(partyCode);
+        if (window.RosasWhatsApp) {
+          window.RosasWhatsApp.shareGameInvite(partyCode);
+        }
       });
       lobbyControls.appendChild(btn);
     }
@@ -624,17 +789,26 @@ function handleCreateParty() {
 }
 
 function handleJoinParty() {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const pseudo = window.RosasGameState.currentUserPseudo;
   const codeInput = document.getElementById('join-code');
   
   if (!pseudo) {
-    window.RosasUI.showNotification("❌", "Erreur", "Choisis un pseudo d'abord");
-    window.RosasUI.showScreen('screen-pseudo');
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("❌", "Erreur", "Choisis un pseudo d'abord");
+      window.RosasUI.showScreen('screen-pseudo');
+    }
     return;
   }
   
   if (!codeInput || !codeInput.value.trim()) {
-    window.RosasUI.showNotification("❌", "Erreur", "Entre un code de partie");
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("❌", "Erreur", "Entre un code de partie");
+    }
     return;
   }
   
@@ -652,17 +826,26 @@ function handleJoinParty() {
     joinedAt: Date.now()
   });
   
-  window.RosasUI.showScreen('screen-lobby');
-  window.RosasUI.showNotification("✅", "Partie rejointe", `Code: ${partyCode}`);
+  if (window.RosasUI) {
+    window.RosasUI.showScreen('screen-lobby');
+    window.RosasUI.showNotification("✅", "Partie rejointe", `Code: ${partyCode}`);
+  }
 }
 
 function handleStartGame() {
+  if (!window.RosasGameState || !window.RosasUI) {
+    console.error("❌ GameState ou UI non disponible");
+    return;
+  }
+  
   if (window.RosasGameState.players.length < 2) {
     window.RosasUI.showNotification("⏳", "En attente", "Il faut au moins 2 joueurs");
     return;
   }
   
-  window.RosasGameState.initializeCards();
+  if (window.RosasGameState.initializeCards) {
+    window.RosasGameState.initializeCards();
+  }
   
   if (window.RosasGameState.startGame()) {
     if (window.RosasGameState.isOnline && window.RosasSyncRoom) {
@@ -675,50 +858,81 @@ function handleStartGame() {
     // Initialiser les jauges
     setTimeout(() => {
       updateAllGauges();
-      window.RosasSobrietyGauge.refreshGaugesVisibility();
+      if (window.RosasSobrietyGauge) {
+        window.RosasSobrietyGauge.refreshGaugesVisibility();
+      }
     }, 100);
   }
 }
 
 function handleDrawCard() {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const currentPlayer = window.RosasGameState.getCurrentPlayer();
   
   if (!currentPlayer) {
-    window.RosasUI.showNotification("❌", "Erreur", "Aucun joueur actif");
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("❌", "Erreur", "Aucun joueur actif");
+    }
     return;
   }
   
   const card = window.RosasGameState.drawCard();
   
   if (card) {
-    window.RosasStorage.updateUserStat('cardsDrawn', 1);
-    window.RosasStorage.updateThemeUsage(card.theme);
+    if (window.RosasStorage) {
+      if (window.RosasStorage.updateUserStat) {
+        window.RosasStorage.updateUserStat('cardsDrawn', 1);
+      }
+      if (window.RosasStorage.updateThemeUsage) {
+        window.RosasStorage.updateThemeUsage(card.theme);
+      }
+    }
     
     if (card.drink > 0) {
       window.RosasGameState.updatePlayerSips(currentPlayer.id, card.drink);
-      window.RosasStorage.updateUserStat('sipsTaken', card.drink);
+      if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+        window.RosasStorage.updateUserStat('sipsTaken', card.drink);
+      }
     }
   }
 }
 
 function handlePassTurn() {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const currentCard = window.RosasGameState.currentCard;
   
   if (!currentCard || !currentCard.canPass) {
-    window.RosasUI.showNotification("❌", "Impossible", "Cette carte ne peut pas être passée");
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("❌", "Impossible", "Cette carte ne peut pas être passée");
+    }
     return;
   }
   
   const currentPlayer = window.RosasGameState.getCurrentPlayer();
   if (currentPlayer) {
     window.RosasGameState.updatePlayerSips(currentPlayer.id, 1);
-    window.RosasStorage.updateUserStat('sipsTaken', 1);
+    if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+      window.RosasStorage.updateUserStat('sipsTaken', 1);
+    }
   }
   
   handleNextTurn();
 }
 
 function handleValidateCard() {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const currentCard = window.RosasGameState.currentCard;
   
   if (!currentCard) return;
@@ -746,14 +960,23 @@ function handlePhotoInputChange(e) {
   const file = e.target.files[0];
   if (!file) return;
   
-  window.RosasUI.handlePhotoSelected(file);
+  if (window.RosasUI && window.RosasUI.handlePhotoSelected) {
+    window.RosasUI.handlePhotoSelected(file);
+  }
 }
 
 function saveCurrentPhoto() {
   const previewImg = document.getElementById('photo-preview');
   
   if (!previewImg || !previewImg.dataset.pending) {
-    window.RosasUI.showNotification("❌", "Erreur", "Aucune photo sélectionnée");
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("❌", "Erreur", "Aucune photo sélectionnée");
+    }
+    return null;
+  }
+  
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
     return null;
   }
   
@@ -763,8 +986,13 @@ function saveCurrentPhoto() {
     mission: window.RosasGameState.currentPhotoMission
   };
   
-  window.RosasGameState.addPhoto(photoData);
-  window.RosasStorage.updateUserStat('photosTaken', 1);
+  if (window.RosasGameState.addPhoto) {
+    window.RosasGameState.addPhoto(photoData);
+  }
+  
+  if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+    window.RosasStorage.updateUserStat('photosTaken', 1);
+  }
   
   return photoData;
 }
@@ -773,15 +1001,24 @@ function handleSavePhoto() {
   const photoData = saveCurrentPhoto();
   if (photoData) {
     handleNextTurn();
-    window.RosasUI.showNotification("📸", "Photo enregistrée", "Ajoutée à l'album");
+    if (window.RosasUI) {
+      window.RosasUI.showNotification("📸", "Photo enregistrée", "Ajoutée à l'album");
+    }
   }
 }
 
 function handleSkipPhoto() {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const currentPlayer = window.RosasGameState.getCurrentPlayer();
   if (currentPlayer) {
     window.RosasGameState.updatePlayerSips(currentPlayer.id, 2);
-    window.RosasStorage.updateUserStat('sipsTaken', 2);
+    if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+      window.RosasStorage.updateUserStat('sipsTaken', 2);
+    }
   }
   
   handleNextTurn();
@@ -793,7 +1030,10 @@ function handleSkipPhoto() {
 function handleRollDice() {
   const result = Math.floor(Math.random() * 6) + 1;
   
-  window.RosasUI.showNotification("🎲", `Dé: ${result}`, "Résultat du lancer");
+  if (window.RosasUI) {
+    window.RosasUI.showNotification("🎲", `Dé: ${result}`, "Résultat du lancer");
+  }
+  
   applyDiceEffect(result);
   
   setTimeout(() => {
@@ -802,6 +1042,11 @@ function handleRollDice() {
 }
 
 function applyDiceEffect(result) {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const currentPlayer = window.RosasGameState.getCurrentPlayer();
   if (!currentPlayer) return;
   
@@ -836,6 +1081,11 @@ function applyDiceEffect(result) {
 // GESTION "JE N'AI JAMAIS"
 // -------------------------
 function handleNeverAnswer(yes) {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const currentCard = window.RosasGameState.currentCard;
   const currentPlayer = window.RosasGameState.getCurrentPlayer();
   
@@ -843,7 +1093,9 @@ function handleNeverAnswer(yes) {
   
   if (yes) {
     window.RosasGameState.updatePlayerSips(currentPlayer.id, currentCard.drink || 1);
-    window.RosasStorage.updateUserStat('sipsTaken', currentCard.drink || 1);
+    if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+      window.RosasStorage.updateUserStat('sipsTaken', currentCard.drink || 1);
+    }
   } else {
     window.RosasGameState.players.forEach(player => {
       if (player.id !== currentPlayer.id) {
@@ -859,12 +1111,20 @@ function handleNeverAnswer(yes) {
 // UTILITAIRES DE JEU
 // -------------------------
 function handleNextTurn() {
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
   const nextPlayer = window.RosasGameState.nextPlayer();
   
-  if (nextPlayer) {
+  if (nextPlayer && window.RosasUI) {
     window.RosasUI.updateCurrentPlayerInfo();
     window.RosasUI.renderPlayers();
-    window.RosasStorage.updateUserStat('totalTurns', 1);
+    
+    if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+      window.RosasStorage.updateUserStat('totalTurns', 1);
+    }
     
     if (window.RosasGameState.isOnline && window.RosasSyncRoom) {
       const gameStateData = {
@@ -885,18 +1145,27 @@ function handleNextTurn() {
 }
 
 function distributeSips(amount, fromPlayer) {
-  window.RosasUI.showNotification("🥂", "Distribution", `Distribue ${amount} gorgée(s)`);
+  if (!window.RosasGameState) {
+    console.error("❌ GameState non disponible");
+    return;
+  }
+  
+  if (window.RosasUI) {
+    window.RosasUI.showNotification("🥂", "Distribution", `Distribue ${amount} gorgée(s)`);
+  }
   
   const otherPlayers = window.RosasGameState.players.filter(p => p.id !== fromPlayer.id);
   if (otherPlayers.length > 0) {
     const randomPlayer = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
     window.RosasGameState.updatePlayerSips(randomPlayer.id, amount);
-    window.RosasStorage.updateUserStat('sipsGiven', amount);
+    if (window.RosasStorage && window.RosasStorage.updateUserStat) {
+      window.RosasStorage.updateUserStat('sipsGiven', amount);
+    }
   }
 }
 
 function updateAllGauges() {
-  if (!window.RosasSobrietyGauge) return;
+  if (!window.RosasSobrietyGauge || !window.RosasGameState) return;
   
   const playerCards = document.querySelectorAll('.player-card');
   playerCards.forEach(card => {
@@ -919,231 +1188,68 @@ function updateAllGauges() {
 }
 
 // -------------------------
-// GESTION DES PARTIES EN LIGNE
+// UTILITAIRES
 // -------------------------
-function handleCreateOnlineParty() {
-  const pseudo = window.RosasGameState.currentUserPseudo;
-  
-  if (!pseudo) {
-    window.RosasUI.showNotification("❌", "Erreur", "Choisis un pseudo d'abord");
-    window.RosasUI.showScreen('screen-pseudo');
-    return;
+function generateRandomCode(length = 6) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  
-  window.RosasSyncRoom.createRoom(`Partie de ${pseudo}`, {
-    maxPlayers: 8,
-    private: false
-  }).then(result => {
-    if (result.success) {
-      window.RosasUI.showScreen('screen-lobby');
-      window.RosasUI.showNotification("🌐", "Partie en ligne créée", `Code: ${result.roomCode}`);
-    } else {
-      window.RosasUI.showNotification("❌", "Erreur", result.error);
-    }
-  });
+  return result;
 }
 
-function handleJoinOnlineParty() {
-  const pseudo = window.RosasGameState.currentUserPseudo;
-  const codeInput = document.getElementById('join-code');
-  
-  if (!pseudo) {
-    window.RosasUI.showNotification("❌", "Erreur", "Choisis un pseudo d'abord");
-    window.RosasUI.showScreen('screen-pseudo');
-    return;
-  }
-  
-  if (!codeInput || !codeInput.value.trim()) {
-    window.RosasUI.showNotification("❌", "Erreur", "Entre un code de partie");
-    return;
-  }
-  
-  window.RosasSyncRoom.joinRoom(
-    codeInput.value.trim().toUpperCase(),
-    pseudo
-  ).then(result => {
-    if (result.success) {
-      window.RosasUI.showScreen('screen-lobby');
-      window.RosasUI.showNotification("✅", "Connecté", `Partie: ${result.roomCode}`);
-    } else {
-      window.RosasUI.showNotification("❌", "Erreur", result.error);
-    }
-  });
-}
-
-function handleLocalGame() {
-  window.RosasUI.showNotification("🏠", "Mode local", "Partie hors ligne démarrée");
-  window.RosasUI.showScreen('screen-pseudo');
-}
-
-// -------------------------
-// HANDLERS D'ÉVÉNEMENTS SYNC ROOM
-// -------------------------
-function handleRoomCreated(data) {
-  console.log("🎮 Salle créée:", data.roomCode);
-  updatePartyLink(data.roomCode);
-}
-
-function handleRoomJoined(data) {
-  console.log("👤 Rejoint la salle:", data.roomCode);
-  window.RosasUI.updateLobbyInfo();
-}
-
-function handleRoomLeft(data) {
-  console.log("🚪 Quitté la salle:", data.roomCode);
-  window.RosasUI.showScreen('screen-join');
-}
-
-function handlePlayerJoined(data) {
-  console.log("👋 Nouveau joueur:", data.player.name);
-  window.RosasUI.showNotification("👤", "Nouveau joueur", `${data.player.name} a rejoint`);
-  window.RosasUI.renderPlayers();
-}
-
-function handlePlayerLeft(data) {
-  console.log("👋 Joueur parti:", data.playerName);
-  window.RosasUI.showNotification("👋", "Départ", `${data.playerName} a quitté`);
-  window.RosasUI.renderPlayers();
-}
-
-function handleGameStarted(data) {
-  console.log("🎲 Jeu démarré dans la salle");
-  window.RosasUI.showScreen('screen-game');
-  window.RosasGameState.startGame();
-}
-
-function handleGameEnded(data) {
-  console.log("🏁 Jeu terminé");
-  window.RosasUI.showScreen('screen-stats');
-}
-
-function handleSyncError(data) {
-  console.error("🔥 Erreur SyncRoom:", data.error);
-  window.RosasUI.showNotification("⚠️", "Connexion perdue", "Mode local activé");
-}
-
-// -------------------------
-// FONCTIONS UTILITAIRES
-// -------------------------
-function updatePartyLink(partyCode) {
-  const partyLink = `${window.location.origin}?party=${partyCode}`;
-  window.RosasGameState.partyLink = partyLink;
-  
-  const linkDisplay = document.getElementById('party-link');
-  if (linkDisplay) {
-    linkDisplay.textContent = partyLink;
-  }
-}
-
-function handleCopyLink() {
-  if (!window.RosasGameState.partyLink) return;
-  
-  navigator.clipboard.writeText(window.RosasGameState.partyLink)
-    .then(() => {
-      window.RosasUI.showNotification("📋", "Lien copié", "Partage-le avec tes amis");
-    })
-    .catch(err => {
-      console.error('Erreur copie:', err);
-    });
-}
-
-function handleSendAlbum() {
-  const emailInput = document.getElementById('album-email');
-  
-  if (!emailInput || !emailInput.value) {
-    window.RosasUI.showNotification("❌", "Erreur", "Entre ton email");
-    return;
-  }
-  
-  if (window.RosasGameState.photos.length === 0) {
-    window.RosasUI.showNotification("📸", "Album vide", "Prends des photos d'abord");
-    return;
-  }
-  
-  window.RosasUI.showNotification("📧", "Album envoyé", `À ${emailInput.value}`);
-  emailInput.value = "";
-}
-
-function handleEndGame() {
-  if (confirm("Terminer la partie ?")) {
-    window.RosasGameState.calculateScores();
-    
-    const partyData = {
-      code: window.RosasGameState.partyCode,
-      players: window.RosasGameState.players,
-      winner: window.RosasGameState.players[0],
-      totalTurns: window.RosasGameState.totalTurns,
-      startTime: window.RosasGameState.startTime,
-      duration: Date.now() - (window.RosasGameState.startTime || Date.now())
-    };
-    
-    window.RosasStorage.addPartyToHistory(partyData);
-    window.RosasStorage.updateUserStat('gamesPlayed', 1);
-    
-    window.RosasUI.showScreen('screen-stats');
-    
-    if (window.RosasGameState.isOnline && window.RosasSyncRoom) {
-      window.RosasSyncRoom.endGame();
-    }
-  }
-}
-
-function updateUIFromState(state) {
-  if (state.activeRule) {
-    const ruleElement = document.getElementById('active-rule-text');
-    if (ruleElement) {
-      ruleElement.textContent = state.activeRule;
-    }
-  }
-  
-  const turnCounter = document.getElementById('turn-counter');
-  if (turnCounter) {
-    turnCounter.textContent = `Tour ${state.totalTurns || 0}`;
-  }
-  
-  if (state.timeLeft > 0) {
-    const timerElement = document.getElementById('timer');
-    if (timerElement) {
-      const minutes = Math.floor(state.timeLeft / 60);
-      const seconds = state.timeLeft % 60;
-      timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-  }
+function handleAction(action, target) {
+  console.log(`Action: ${action}`, target);
+  // Implémenter les actions spécifiques ici
 }
 
 // -------------------------
 // SESSION ET RESTAURATION
 // -------------------------
 function restoreLastSession() {
+  if (!window.RosasStorage || !window.RosasStorage.loadLastSession) {
+    console.warn("⚠️ Storage non disponible pour restaurer la session");
+    return;
+  }
+  
   const lastSession = window.RosasStorage.loadLastSession();
   
   if (lastSession) {
     const shouldRestore = confirm("Reprendre la dernière partie ?");
     
-    if (shouldRestore) {
+    if (shouldRestore && window.RosasStorage.loadGameState) {
       const savedState = window.RosasStorage.loadGameState();
-      if (savedState) {
+      if (savedState && window.RosasGameState && window.RosasGameState.importState) {
         window.RosasGameState.importState(JSON.stringify(savedState));
-        window.RosasUI.showScreen('screen-game');
-        window.RosasUI.showNotification("🔄", "Session restaurée", "Bienvenue de retour");
+        
+        if (window.RosasUI) {
+          window.RosasUI.showScreen('screen-game');
+          window.RosasUI.showNotification("🔄", "Session restaurée", "Bienvenue de retour");
+        }
         
         // Initialiser les jauges après restauration
         setTimeout(() => {
           updateAllGauges();
-          window.RosasSobrietyGauge.refreshGaugesVisibility();
+          if (window.RosasSobrietyGauge) {
+            window.RosasSobrietyGauge.refreshGaugesVisibility();
+          }
         }, 100);
       }
     }
   }
   
+  // Sauvegarder périodiquement la session
   setInterval(() => {
-    const sessionData = {
-      timestamp: Date.now(),
-      partyCode: window.RosasGameState.partyCode,
-      playersCount: window.RosasGameState.players.length,
-      currentScreen: window.RosasUI.currentScreen
-    };
-    window.RosasStorage.saveLastSession(sessionData);
+    if (window.RosasStorage && window.RosasStorage.saveLastSession) {
+      const sessionData = {
+        timestamp: Date.now(),
+        partyCode: window.RosasGameState?.partyCode || "",
+        playersCount: window.RosasGameState?.players?.length || 0,
+        currentScreen: window.RosasUI?.currentScreen || ""
+      };
+      window.RosasStorage.saveLastSession(sessionData);
+    }
   }, 30000);
 }
 
@@ -1154,13 +1260,15 @@ function startAmbientAnimations() {
   createAmbientParticles();
   
   setInterval(() => {
-    if (Math.random() > 0.7) {
+    if (Math.random() > 0.7 && window.RosasUI && window.RosasUI.createGoldenSparkles) {
       window.RosasUI.createGoldenSparkles(3);
     }
   }, 5000);
   
   setInterval(() => {
-    window.RosasUI.updateCountdown();
+    if (window.RosasUI && window.RosasUI.updateCountdown) {
+      window.RosasUI.updateCountdown();
+    }
   }, 1000);
 }
 
@@ -1189,127 +1297,10 @@ function createAmbientParticles() {
 }
 
 // -------------------------
-// MODAL DES PARAMÈTRES
-// -------------------------
-function showSettingsModal() {
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.innerHTML = `
-    <div class="modal-content" style="max-width:500px;background:rgba(0,0,0,0.95);border:2px solid var(--gold);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <h3 style="color:var(--gold);margin:0;"><i class="fas fa-cog"></i> Paramètres</h3>
-        <button class="button button-small" onclick="this.closest('.modal').remove()">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      
-      <div style="display:grid;gap:15px;">
-        <div class="setting-item">
-          <label><i class="fas fa-volume-up"></i> Sons</label>
-          <label class="switch">
-            <input type="checkbox" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="setting-item">
-          <label><i class="fas fa-bell"></i> Notifications</label>
-          <label class="switch">
-            <input type="checkbox" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="setting-item">
-          <label><i class="fas fa-moon"></i> Mode sombre</label>
-          <label class="switch">
-            <input type="checkbox">
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div class="setting-item">
-          <label><i class="fas fa-vibrate"></i> Vibration</label>
-          <label class="switch">
-            <input type="checkbox" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        
-        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:15px;margin-top:10px;">
-          <button class="button button-full" onclick="clearAllData()">
-            <i class="fas fa-trash"></i> Effacer toutes les données
-          </button>
-          
-          <button class="button button-full" onclick="exportBackup()" style="margin-top:10px;">
-            <i class="fas fa-download"></i> Sauvegarder les données
-          </button>
-          
-          <button class="button button-full" onclick="importBackup()" style="margin-top:10px;">
-            <i class="fas fa-upload"></i> Restaurer une sauvegarde
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-}
-
-// -------------------------
-// FONCTIONS DE DÉBOGAGE
-// -------------------------
-function clearAllData() {
-  if (confirm("Effacer TOUTES les données ? Cette action est irréversible.")) {
-    window.RosasStorage.clearAllData();
-    window.location.reload();
-  }
-}
-
-function exportBackup() {
-  const backup = window.RosasStorage.exportBackup();
-  const blob = new Blob([backup], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `rosas_backup_${Date.now()}.json`;
-  a.click();
-  
-  window.RosasUI.showNotification("💾", "Sauvegarde", "Données exportées");
-}
-
-function importBackup() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      const result = window.RosasStorage.importBackup(event.target.result);
-      
-      if (result.success) {
-        window.RosasUI.showNotification("🔄", "Restauration", "Données restaurées");
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        window.RosasUI.showNotification("❌", "Erreur", result.error);
-      }
-    };
-    
-    reader.readAsText(file);
-  };
-  
-  input.click();
-}
-
-// -------------------------
 // EXPORT DES FONCTIONS GLOBALES
 // -------------------------
 window.RosasApp = {
-  version: "2.1",
+  version: "2.2",
   state: window.RosasGameState,
   storage: window.RosasStorage,
   sync: window.RosasSyncRoom,
@@ -1320,14 +1311,14 @@ window.RosasApp = {
   startNewGame: handleStartGame,
   drawCard: handleDrawCard,
   nextTurn: handleNextTurn,
-  showStats: () => window.RosasUI.showScreen('screen-stats'),
-  showAlbum: () => window.RosasUI.showScreen('screen-album'),
+  showStats: () => window.RosasUI?.showScreen('screen-stats'),
+  showAlbum: () => window.RosasUI?.showScreen('screen-album'),
   
   debug: {
-    getState: () => window.RosasGameState.getStateSnapshot(),
-    getStorageUsage: () => window.RosasStorage.getStorageUsage(),
-    getConnectionStatus: () => window.RosasSyncRoom.getConnectionStatus()
+    getState: () => window.RosasGameState?.getStateSnapshot?.(),
+    getStorageUsage: () => window.RosasStorage?.getStorageUsage?.(),
+    getConnectionStatus: () => window.RosasSyncRoom?.getConnectionStatus?.()
   }
 };
 
-console.log("🎮 Rosas App 2.1 prête avec WhatsApp et Jauges !");
+console.log("🎮 Rosas App 2.2 prête avec WhatsApp et Jauges !");
